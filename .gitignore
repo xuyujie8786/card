@@ -1,43 +1,44 @@
-# Dependencies
+# 依赖
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Environment variables
+# 环境变量
 .env
 .env.local
 .env.*.local
 
-# Database data
+# 数据库数据（重要：不上传）
 data/
-postgres-data/
 *.sql
-*.db
+postgres-data/
+pgdata/
 
-# Logs
+# 日志
 logs/
 *.log
 
-# OS files
+# 临时文件
 .DS_Store
-Thumbs.db
+*.swp
+*.swo
+*~
+
+# 构建产物
+dist/
+build/
+.next/
+out/
 
 # IDE
 .vscode/
 .idea/
-*.swp
-*.swo
+*.iml
 
-# Build outputs
-dist/
-build/
-.next/
+# 测试
+coverage/
+.nyc_output/
 
 # Docker volumes
-volumes/
-
-# Temporary files
-tmp/
-temp/
-*.tmp
+redis-data/
