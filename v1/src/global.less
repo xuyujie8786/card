@@ -1,0 +1,129 @@
+@font-face {
+  font-family: "AlibabaSans";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("//mdn.alipayobjects.com/huamei_iwk9zp/afts/file/A*1GSgSYDD_aIAAAAAQsAAAAgAegCCAQ/AlibabaSans-Light.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "AlibabaSans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("//mdn.alipayobjects.com/huamei_iwk9zp/afts/file/A*2zEUQqnPNesAAAAAQtAAAAgAegCCAQ/AlibabaSans-Regular.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "AlibabaSans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("//mdn.alipayobjects.com/huamei_iwk9zp/afts/file/A*E_cxRbMlZqUAAAAAQuAAAAgAegCCAQ/AlibabaSans-Medium.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "AlibabaSans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("//mdn.alipayobjects.com/huamei_iwk9zp/afts/file/A*E_cxRbMlZqUAAAAAQuAAAAgAegCCAQ/AlibabaSans-Bold.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "AlibabaSans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("//mdn.alipayobjects.com/huamei_iwk9zp/afts/file/A*E_cxRbMlZqUAAAAAQuAAAAgAegCCAQ/AlibabaSans-Heavy.woff2")
+    format("woff2");
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family:
+    AlibabaSans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
+    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+.colorWeak {
+  filter: invert(80%);
+}
+
+.ant-layout {
+  min-height: 100vh;
+}
+.ant-pro-sider.ant-layout-sider.ant-pro-sider-fixed {
+  left: unset;
+}
+
+canvas {
+  display: block;
+}
+
+/* ProLayout 定宽布局配置 - 基于实际DOM结构 */
+
+/* 整体布局容器限制 - 仅应用于主布局，不影响登录页 */
+.ant-pro-layout:not(.ant-pro-layout-userLayout) {
+  max-width: 1600px !important;
+  margin: 0 auto !important;
+  box-shadow: 0 0 20px rgba(0,0,0,0.1) !important;
+}
+
+/* 固定内容宽度：当 contentWidth 为 Fixed 时，Pro 会给内容容器添加该类名 */
+.ant-pro-grid-content-wide {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* 顶部导航头部的主要内容区域 - 仅应用于主布局 */
+.ant-pro-layout:not(.ant-pro-layout-userLayout) .ant-pro-top-nav-header-main {
+  max-width: 1400px !important;
+  margin: 0 auto !important;
+}
+
+/* PageHeader 标题区域（PageContainer头部）- 仅应用于主布局 */
+.ant-pro-layout:not(.ant-pro-layout-userLayout) .ant-page-header-wide {
+  max-width: 1400px !important;
+  margin: 0 auto !important;
+}
+
+/* 布局容器内的内容 - 仅应用于主布局 */
+.ant-pro-layout:not(.ant-pro-layout-userLayout) .ant-pro-layout-container {
+  max-width: 1600px !important;
+  margin: 0 auto !important;
+}
+
+/* 页面内容区域宽度由 .ant-pro-grid-content-wide 控制，无需额外强制 */
+
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+@media (max-width: 768px) {
+  .ant-table {
+    width: 100%;
+    overflow-x: auto;
+    &-thead > tr,
+    &-tbody > tr {
+      > th,
+      > td {
+        white-space: pre;
+        > span {
+          display: block;
+        }
+      }
+    }
+  }
+}

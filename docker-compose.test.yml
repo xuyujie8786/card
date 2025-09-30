@@ -1,0 +1,71 @@
+version: '3.8'
+
+# 用于测试定时同步功能的Docker Compose配置
+# 使用命令: docker-compose -f docker-compose.test.yml up backend-test
+
+networks:
+  test-network:
+    driver: bridge
+
+volumes:
+  test_logs:
+    driver: local
+
+services:
+  # 仅启动后端服务进行定时任务测试
+  backend-test:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vcard-backend-test
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      TZ: Asia/Shanghai
+      # 测试用的数据库连接 (可以是外部数据库或mock)
+      DATABASE_URL: postgresql://test_user:test_pass@host.docker.internal:5432/test_db
+      REDIS_URL: redis://:test_pass@host.docker.internal:6379
+      JWT_SECRET: test_jwt_secret_key
+      JWT_EXPIRES_IN: 7d
+      CARD_PROVIDER_TOKEN: test_token
+      CARD_PROVIDER_URL: https://openapi-hk.vccdaddy.com
+      LOG_LEVEL: info
+      # 定时同步任务配置 - 使用更频繁的时间进行测试
+      SYNC_ENABLED: true
+      # 每分钟执行一次用于测试 (生产环境中应该是每日)
+      SYNC_AUTH_PREVIOUS_CRON: "*/2 * * * *"     # 每2分钟执行
+      SYNC_AUTH_CURRENT_CRON: "1-59/2 * * * *"   # 每2分钟执行，错开1分钟
+      SYNC_SETTLE_PREVIOUS_CRON: "*/3 * * * *"   # 每3分钟执行
+      SYNC_SETTLE_CURRENT_CRON: "1-59/3 * * * *" # 每3分钟执行，错开1分钟
+    ports:
+      - "3001:3001"
+    networks:
+      - test-network
+    restart: "no"
+    volumes:
+      - test_logs:/app/logs
+      # 挂载时区验证脚本
+      - ./docker-timezone-test.js:/app/timezone-test.js:ro
+    command: sh -c "echo '🔍 容器时区验证:' && node timezone-test.js && echo '🚀 启动应用...' && node dist/index.js"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # 时区测试容器 - 仅用于验证时区配置
+  timezone-test:
+    image: node:20-alpine
+    container_name: timezone-test
+    environment:
+      TZ: Asia/Shanghai
+      SYNC_ENABLED: true
+    volumes:
+      - ./docker-timezone-test.js:/app/test.js:ro
+    networks:
+      - test-network
+    command: sh -c "apk add --no-cache tzdata && node /app/test.js"
+    restart: "no"
+
+

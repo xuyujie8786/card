@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{CSRF_TOKEN}}">
+  
+  <!-- ✅ 内容安全策略 (CSP) - 防XSS攻击 -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' 'unsafe-eval';
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    img-src 'self' data: https: blob:;
+    font-src 'self' https://fonts.gstatic.com;
+    connect-src 'self' http://localhost:3001 ws://localhost:8002;
+    frame-ancestors 'none';
+    base-uri 'self';
+    form-action 'self';
+    object-src 'none';
+    media-src 'self';
+  ">
+  
+  <!-- ✅ 其他安全头 -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+  
+  <title>虚拟卡管理系统</title>
+  <link rel="icon" href="/favicon.ico" />
+</head>
+<body>
+  <div id="root">
+    <style>
+      html, body, #root {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      
+      #root {
+        background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+      
+      .page-loading-warp {
+        padding: 98px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      
+      .ant-spin {
+        -webkit-box-sizing: border-box;
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        color: rgba(0, 0, 0, 0.65);
+        font-size: 14px;
+        font-variant: tabular-nums;
+        line-height: 1.5;
+        list-style: none;
+        -webkit-font-feature-settings: 'tnum';
+        font-feature-settings: 'tnum';
+        position: absolute;
+        display: none;
+        color: #1890ff;
+        text-align: center;
+        vertical-align: middle;
+        opacity: 0;
+        -webkit-transition: -webkit-transform 0.3s cubic-bezier(0.78, 0.14, 0.15, 0.86);
+        transition: -webkit-transform 0.3s cubic-bezier(0.78, 0.14, 0.15, 0.86);
+        transition: transform 0.3s cubic-bezier(0.78, 0.14, 0.15, 0.86);
+        transition: transform 0.3s cubic-bezier(0.78, 0.14, 0.15, 0.86), -webkit-transform 0.3s cubic-bezier(0.78, 0.14, 0.15, 0.86);
+      }
+
+      .ant-spin-spinning {
+        position: static;
+        display: inline-block;
+        opacity: 1;
+      }
+
+      .ant-spin-dot {
+        position: relative;
+        display: inline-block;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+
+
+      .ant-spin-dot-item {
+        position: absolute;
+        display: block;
+        width: 9px;
+        height: 9px;
+        background-color: #1890ff;
+        border-radius: 100%;
+        -webkit-transform: scale(0.75);
+        -ms-transform: scale(0.75);
+        transform: scale(0.75);
+        -webkit-transform-origin: 50% 50%;
+        -ms-transform-origin: 50% 50%;
+        transform-origin: 50% 50%;
+        opacity: 0.3;
+        -webkit-animation: antSpinMove 1s infinite linear alternate;
+        animation: antSpinMove 1s infinite linear alternate;
+      }
+
+
+      .ant-spin-dot-item:nth-child(1) {
+        top: 0;
+        left: 0;
+      }
+
+
+      .ant-spin-dot-item:nth-child(2) {
+        top: 0;
+        right: 0;
+        -webkit-animation-delay: 0.4s;
+        animation-delay: 0.4s;
+      }
+
+
+      .ant-spin-dot-item:nth-child(3) {
+        right: 0;
+        bottom: 0;
+        -webkit-animation-delay: 0.8s;
+        animation-delay: 0.8s;
+      }
+
+
+      .ant-spin-dot-item:nth-child(4) {
+        bottom: 0;
+        left: 0;
+        -webkit-animation-delay: 1.2s;
+        animation-delay: 1.2s;
+      }
+
+
+      @media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+        .ant-spin-blur {
+          background: #fff;
+          opacity: 0.5;
+        }
+      }
+
+
+      @-webkit-keyframes antSpinMove {
+        to {
+          opacity: 1;
+        }
+      }
+
+
+      @keyframes antSpinMove {
+        to {
+          opacity: 1;
+        }
+      }
+    </style>
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+      <div class="page-loading-warp">
+        <div class="ant-spin ant-spin-lg ant-spin-spinning">
+          <span class="ant-spin-dot ant-spin-dot-spin">
+            <i class="ant-spin-dot-item"></i>
+            <i class="ant-spin-dot-item"></i>
+            <i class="ant-spin-dot-item"></i>
+            <i class="ant-spin-dot-item"></i>
+          </span>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center;">
+        <h1 style="color: rgba(255, 255, 255, 0.85); font-weight: 400; margin-bottom: 16px;">
+          虚拟卡管理系统
+        </h1>
+        <p style="color: rgba(255, 255, 255, 0.65); font-size: 14px; line-height: 22px; margin-bottom: 22px;">
+          安全、高效的虚拟卡管理平台
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,131 @@
+version: '3.8'
+
+volumes:
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+services:
+  # Prometheus监控
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: vcard-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/rules:/etc/prometheus/rules:ro
+    networks:
+      - vcard-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+
+  # Grafana可视化
+  grafana:
+    image: grafana/grafana:latest
+    container_name: vcard-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - vcard-network
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  # Node Exporter (系统指标)
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: vcard-node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - vcard-network
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+
+  # cAdvisor (容器指标)
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: vcard-cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - vcard-network
+    privileged: true
+    devices:
+      - /dev/kmsg
+    restart: unless-stopped
+
+  # Loki日志聚合
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: vcard-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+    networks:
+      - vcard-network
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  # Promtail日志收集器
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: vcard-promtail
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - backend_logs:/var/log/backend:ro
+      - nginx_logs:/var/log/nginx:ro
+    networks:
+      - vcard-network
+    command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped
+    depends_on:
+      - loki
+
+  # AlertManager告警管理
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: vcard-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    networks:
+      - vcard-network
+    restart: unless-stopped
+
+

@@ -1,0 +1,63 @@
+version: '3.8'
+
+# 开发环境覆盖配置
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    environment:
+      NODE_ENV: development
+    volumes:
+      # 挂载源代码以支持热重载
+      - ./backend/src:/app/src:ro
+      - ./backend/prisma:/app/prisma:ro
+      - ./backend/logs:/app/logs
+    command: npm run dev
+    ports:
+      - "3001:3001"
+      - "9229:9229"  # Node.js调试端口
+
+  frontend:
+    build:
+      context: ./v1
+      dockerfile: Dockerfile.dev
+    environment:
+      NODE_ENV: development
+      UMI_ENV: dev
+    volumes:
+      # 挂载源代码以支持热重载
+      - ./v1/src:/app/src:ro
+      - ./v1/config:/app/config:ro
+      - ./v1/mock:/app/mock:ro
+    command: npm run start:dev
+    ports:
+      - "8000:8000"
+
+  # 开发工具
+  adminer:
+    image: adminer:latest
+    container_name: vcard-adminer
+    ports:
+      - "8080:8080"
+    networks:
+      - vcard-network
+    environment:
+      ADMINER_DEFAULT_SERVER: database
+    depends_on:
+      - database
+
+  # Redis管理界面
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: vcard-redis-commander
+    ports:
+      - "8081:8081"
+    networks:
+      - vcard-network
+    environment:
+      REDIS_HOSTS: local:redis:6379:0:${REDIS_PASSWORD:-redis_password123}
+    depends_on:
+      - redis
+
+

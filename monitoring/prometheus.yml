@@ -1,0 +1,56 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "rules/*.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 系统指标监控
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # 容器指标监控
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # 后端应用监控
+  - job_name: 'vcard-backend'
+    static_configs:
+      - targets: ['backend:3001']
+    metrics_path: '/api/metrics'
+    scrape_interval: 30s
+
+  # 前端Nginx监控
+  - job_name: 'vcard-nginx'
+    static_configs:
+      - targets: ['frontend:80']
+    metrics_path: '/nginx_status'
+    scrape_interval: 30s
+
+  # PostgreSQL监控
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['database:5432']
+    scrape_interval: 30s
+
+  # Redis监控
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 30s
+
+
