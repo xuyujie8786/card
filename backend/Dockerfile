@@ -8,16 +8,15 @@ WORKDIR /app
 
 # 复制package文件
 COPY package*.json ./
-COPY prisma/ ./prisma/
 
 # 安装所有依赖（包括devDependencies用于构建）
 RUN npm ci
 
-# 生成Prisma客户端
-RUN npx prisma generate
-
-# 复制源代码
+# 复制所有源代码（包括 prisma schema）
 COPY . .
+
+# 生成Prisma客户端（在复制完所有代码之后）
+RUN npx prisma generate
 
 # 构建TypeScript代码
 RUN npm run build
