@@ -24,6 +24,7 @@ model User {
   currency            String            @default("USD") @db.VarChar(3)
   twoFAEnabled        Boolean           @default(false) @map("two_fa_enabled")
   twoFASecret         String?           @map("two_fa_secret") @db.VarChar(255)
+  twoFABackupCodes    Json?             @map("two_fa_backup_codes")
   createdAt           DateTime          @default(now()) @map("created_at")
   updatedAt           DateTime          @updatedAt @map("updated_at")
   cardTransactions    CardTransaction[] @relation("UserCardTransactions")
@@ -199,6 +200,8 @@ enum AccountOperationType {
   TRANSFER_OUT      @map("transfer_out")       // 转出
   TRANSFER_IN       @map("transfer_in")        // 转入
   SYSTEM_ADJUST     @map("system_adjust")      // 系统调整
+  RECHARGE          @map("recharge")           // 充值（通用）
+  WITHDRAW          @map("withdraw")           // 提现（通用）
 }
 
 enum AnnouncementType {
@@ -212,6 +215,7 @@ enum AnnouncementStatus {
   DRAFT     @map("draft")       // 草稿
   PUBLISHED @map("published")   // 已发布
   ARCHIVED  @map("archived")    // 已归档
+  ACTIVE    @map("active")      // 激活（已发布的别名）
 }
 
 model AccountFlow {

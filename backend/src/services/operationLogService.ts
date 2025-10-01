@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, CardStatus as PrismaCardStatus } from '@prisma/client';
 import logger from '../config/logger';
 import {
   OperationType,
@@ -11,14 +11,14 @@ import {
 
 const prisma = new PrismaClient();
 
-// 枚举类型映射
-const operationTypeMapping: Record<OperationType, PrismaOperationType> = {
-  [OperationType.CREATE_CARD]: PrismaOperationType.CREATE_CARD,
-  [OperationType.DELETE_CARD]: PrismaOperationType.DELETE_CARD,
-  [OperationType.RECHARGE]: PrismaOperationType.RECHARGE,
-  [OperationType.WITHDRAW]: PrismaOperationType.WITHDRAW,
-  [OperationType.FREEZE]: PrismaOperationType.FREEZE,
-  [OperationType.UNFREEZE]: PrismaOperationType.UNFREEZE,
+// 枚举类型映射 - operationType 存储为字符串，不需要映射
+const operationTypeToString: Record<OperationType, string> = {
+  [OperationType.CREATE_CARD]: 'CREATE_CARD',
+  [OperationType.DELETE_CARD]: 'DELETE_CARD',
+  [OperationType.RECHARGE]: 'RECHARGE',
+  [OperationType.WITHDRAW]: 'WITHDRAW',
+  [OperationType.FREEZE]: 'FREEZE',
+  [OperationType.UNFREEZE]: 'UNFREEZE',
 };
 
 const cardStatusMapping: Record<CardStatus, PrismaCardStatus> = {
@@ -70,7 +70,7 @@ export class OperationLogService {
         data: {
           cardId: request.cardId,
           cardNo: request.cardNo,
-          operationType: operationTypeMapping[request.operationType],
+          operationType: operationTypeToString[request.operationType],
           amount: finalAmount,
           currency: request.currency || 'USD',
           operatorId,
@@ -161,7 +161,7 @@ export class OperationLogService {
       }
 
       if (operationType) {
-        where.operationType = operationTypeMapping[operationType];
+        where.operationType = operationTypeToString[operationType];
       }
 
       if (operatorName) {
