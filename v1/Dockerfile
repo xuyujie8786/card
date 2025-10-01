@@ -11,8 +11,11 @@ COPY package*.json ./
 RUN npm config set registry https://registry.npmmirror.com && \
     npm config set strict-ssl false
 
-# 安装依赖 (使用 --force 强制安装，忽略所有冲突)
-RUN npm install --production=false --force --no-audit --no-fund
+# 安装依赖 (跳过 postinstall 脚本加速安装)
+RUN npm install --production=false --force --no-audit --no-fund --ignore-scripts
+
+# 手动运行必要的 setup
+RUN npx max setup || true
 
 # 复制源代码
 COPY . .
