@@ -1,4 +1,4 @@
-import { PrismaClient, AccountOperationType, CardTxnType, OperationType } from '@prisma/client';
+import { PrismaClient, AccountOperationType, CardTxnType } from '@prisma/client';
 import logger from '../config/logger';
 
 const prisma = new PrismaClient();

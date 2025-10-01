@@ -1,4 +1,4 @@
-import { PrismaClient, OperationType as PrismaOperationType, CardStatus as PrismaCardStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import logger from '../config/logger';
 import {
   OperationType,
