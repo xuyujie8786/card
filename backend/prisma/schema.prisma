@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -12,4 +9,174 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  Int               @id @default(autoincrement())
+  username            String            @unique @db.VarChar(50)
+  email               String            @unique @db.VarChar(100)
+  passwordHash        String            @map("password_hash") @db.VarChar(255)
+  name                String?           @db.VarChar(100)
+  role                UserRole          @default(USER)
+  parentId            Int?              @map("parent_id")
+  status              UserStatus        @default(ACTIVE)
+  balance             Decimal           @default(0.00) @db.Decimal(15, 2)
+  creditLimit         Decimal           @default(0.00) @map("credit_limit") @db.Decimal(15, 2)
+  currency            String            @default("USD") @db.VarChar(3)
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+  cardTransactions    CardTransaction[] @relation("UserCardTransactions")
+  operatedBalanceLogs UserBalanceLog[]  @relation("BalanceLogOperator")
+  relatedBalanceLogs  UserBalanceLog[]  @relation("RelatedUser")
+  balanceLogs         UserBalanceLog[]  @relation("UserBalanceLogs")
+  parent              User?             @relation("UserHierarchy", fields: [parentId], references: [id])
+  children            User[]            @relation("UserHierarchy")
+  createdCards        VirtualCard[]     @relation("CardCreator")
+  virtualCards        VirtualCard[]
+
+  @@index([username])
+  @@index([email])
+  @@index([parentId])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model UserBalanceLog {
+  id            Int            @id @default(autoincrement())
+  userId        Int            @map("user_id")
+  type          BalanceLogType
+  amount        Decimal        @db.Decimal(15, 2)
+  balanceBefore Decimal        @map("balance_before") @db.Decimal(15, 2)
+  balanceAfter  Decimal        @map("balance_after") @db.Decimal(15, 2)
+  currency      String         @db.VarChar(3)
+  relatedCardId Int?           @map("related_card_id")
+  relatedUserId Int?           @map("related_user_id")
+  description   String?
+  remark        String?
+  operatedBy    Int            @map("operated_by")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  operator      User           @relation("BalanceLogOperator", fields: [operatedBy], references: [id])
+  relatedCard   VirtualCard?   @relation(fields: [relatedCardId], references: [id])
+  relatedUser   User?          @relation("RelatedUser", fields: [relatedUserId], references: [id])
+  user          User           @relation("UserBalanceLogs", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([type])
+  @@index([operatedBy])
+  @@index([createdAt])
+  @@map("user_balance_logs")
+}
+
+model VirtualCard {
+  id                 Int               @id @default(autoincrement())
+  userId             Int               @map("user_id")
+  cardId             String            @unique @map("card_id") @db.VarChar(50)
+  cardNo             String            @map("card_no") @db.VarChar(20)
+  cvv                String            @db.VarChar(4)
+  expDate            DateTime          @map("exp_date") @db.Date
+  balance            Decimal           @default(0.00) @db.Decimal(10, 2)
+  currency           String            @default("USD") @db.VarChar(3)
+  status             CardStatus        @default(ACTIVE)
+  cardholderName     String            @map("cardholder_name") @db.VarChar(100)
+  cardholderUsername String            @map("cardholder_username") @db.VarChar(50)
+  cardholderEmail    String?           @map("cardholder_email") @db.VarChar(100)
+  createdBy          Int               @map("created_by")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  remark             String?
+  transactions       CardTransaction[] @relation("CardTransactions")
+  balanceLogs        UserBalanceLog[]
+  creator            User              @relation("CardCreator", fields: [createdBy], references: [id])
+  user               User              @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([cardId])
+  @@index([cardholderUsername])
+  @@index([status])
+  @@index([createdBy])
+  @@map("virtual_cards")
+}
+
+model CardTransaction {
+  id              Int         @id @default(autoincrement())
+  cardId          String      @map("card_id") @db.VarChar(50)
+  userId          Int         @map("user_id")
+  username        String      @map("username") @db.VarChar(50)
+  txnId           String      @unique @map("txn_id") @db.VarChar(100)
+  authTxnId       String?     @map("auth_txn_id") @db.VarChar(100)
+  originTxnId     String      @default("0") @map("origin_txn_id") @db.VarChar(100)
+  txnType         CardTxnType @map("txn_type")
+  txnStatus       String      @map("txn_status") @db.VarChar(10)
+  bizType         String?     @map("biz_type") @db.VarChar(10)
+  merchantName    String?     @map("merchant_name") @db.VarChar(500)
+  merchantCountry String?     @map("merchant_country") @db.VarChar(10)
+  mcc             String?     @map("mcc") @db.VarChar(100)
+  authCode        String?     @map("auth_code") @db.VarChar(50)
+  declineReason   String?     @map("decline_reason") @db.VarChar(500)
+  forcePost       Boolean?    @map("force_post")
+  preAuth         Boolean?    @map("pre_auth")
+  txnTime         DateTime    @map("txn_time")
+  clearingDate    DateTime?   @map("clearing_date") @db.Date
+  rawCallbackData Json?       @map("raw_callback_data")
+  isSettled       Boolean     @default(false) @map("is_settled")
+  settleTxnId     String?     @map("settle_txn_id") @db.VarChar(100)
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  authBillAmt     Decimal?    @map("auth_bill_amt") @db.Decimal(15, 4)
+  authBillCcy     String?     @map("auth_bill_ccy") @db.VarChar(3)
+  authTxnAmt      Decimal?    @map("auth_txn_amt") @db.Decimal(15, 4)
+  authTxnCcy      String?     @map("auth_txn_ccy") @db.VarChar(3)
+  finalAmt        Decimal     @map("final_amt") @db.Decimal(15, 4)
+  finalCcy        String      @map("final_ccy") @db.VarChar(3)
+  settleBillAmt   Decimal?    @map("settle_bill_amt") @db.Decimal(15, 4)
+  settleBillCcy   String?     @map("settle_bill_ccy") @db.VarChar(3)
+  relatedTxnId    String?     @map("related_txn_id") @db.VarChar(100)
+  withdrawalStatus String?     @map("withdrawal_status") @db.VarChar(20)
+  virtualCard     VirtualCard @relation("CardTransactions", fields: [cardId], references: [cardId])
+  user            User        @relation("UserCardTransactions", fields: [userId], references: [id])
+
+  @@index([cardId])
+  @@index([userId])
+  @@index([txnId])
+  @@index([authTxnId])
+  @@index([txnType])
+  @@index([txnTime])
+  @@map("card_transactions")
+}
+
+enum UserRole {
+  SUPER_ADMIN @map("super_admin")
+  ADMIN       @map("admin")
+  USER        @map("user")
+}
+
+enum UserStatus {
+  ACTIVE    @map("active")
+  INACTIVE  @map("inactive")
+  SUSPENDED @map("suspended")
+}
+
+enum CardStatus {
+  ACTIVE   @map("active")
+  FROZEN   @map("frozen")
+  RELEASED @map("released")
+}
+
+enum BalanceLogType {
+  DEPOSIT      @map("deposit")
+  WITHDRAW     @map("withdraw")
+  TRANSFER_IN  @map("transfer_in")
+  TRANSFER_OUT @map("transfer_out")
+  CARD_CHARGE  @map("card_charge")
+  REFUND       @map("refund")
+}
+
+enum CardTxnType {
+  AUTH        @map("A")
+  AUTH_CANCEL @map("D")
+  SETTLEMENT  @map("C")
+  REFUND      @map("R")
+  CANCEL      @map("F")  // F类型表示撤销，不是失败
+  WITHDRAWAL  @map("W")
 }
