@@ -8,10 +8,11 @@ WORKDIR /app
 COPY package*.json ./
 
 # 使用淘宝镜像加速 npm 安装
-RUN npm config set registry https://registry.npmmirror.com
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm config set strict-ssl false
 
-# 安装依赖
-RUN npm install --production=false --legacy-peer-deps
+# 安装依赖 (使用 --force 强制安装，忽略所有冲突)
+RUN npm install --production=false --force --no-audit --no-fund
 
 # 复制源代码
 COPY . .
