@@ -22,6 +22,8 @@ model User {
   balance             Decimal           @default(0.00) @db.Decimal(15, 2)
   creditLimit         Decimal           @default(0.00) @map("credit_limit") @db.Decimal(15, 2)
   currency            String            @default("USD") @db.VarChar(3)
+  twoFAEnabled        Boolean           @default(false) @map("two_fa_enabled")
+  twoFASecret         String?           @map("two_fa_secret") @db.VarChar(255)
   createdAt           DateTime          @default(now()) @map("created_at")
   updatedAt           DateTime          @updatedAt @map("updated_at")
   cardTransactions    CardTransaction[] @relation("UserCardTransactions")
@@ -32,6 +34,11 @@ model User {
   children            User[]            @relation("UserHierarchy")
   createdCards        VirtualCard[]     @relation("CardCreator")
   virtualCards        VirtualCard[]
+  accountFlows        AccountFlow[]     @relation("AccountFlowUser")
+  targetAccountFlows  AccountFlow[]     @relation("AccountFlowTargetUser")
+  operatedAccountFlows AccountFlow[]    @relation("AccountFlowOperator")
+  announcements       Announcement[]    @relation("AnnouncementCreator")
+  operationLogs       OperationLog[]    @relation("OperationLogOperator")
 
   @@index([username])
   @@index([email])
@@ -100,6 +107,8 @@ model VirtualCard {
 model CardTransaction {
   id              Int         @id @default(autoincrement())
   cardId          String      @map("card_id") @db.VarChar(50)
+  cardNo          String      @map("card_no") @db.VarChar(20)
+  status          CardStatus
   userId          Int         @map("user_id")
   username        String      @map("username") @db.VarChar(50)
   txnId           String      @unique @map("txn_id") @db.VarChar(100)
@@ -131,7 +140,7 @@ model CardTransaction {
   settleBillAmt   Decimal?    @map("settle_bill_amt") @db.Decimal(15, 4)
   settleBillCcy   String?     @map("settle_bill_ccy") @db.VarChar(3)
   relatedTxnId    String?     @map("related_txn_id") @db.VarChar(100)
-  withdrawalStatus String?     @map("withdrawal_status") @db.VarChar(20)
+  withdrawalStatus String?    @map("withdrawal_status") @db.VarChar(20)
   virtualCard     VirtualCard @relation("CardTransactions", fields: [cardId], references: [cardId])
   user            User        @relation("UserCardTransactions", fields: [userId], references: [id])
 
@@ -203,4 +212,72 @@ enum AnnouncementStatus {
   DRAFT     @map("draft")       // 草稿
   PUBLISHED @map("published")   // 已发布
   ARCHIVED  @map("archived")    // 已归档
+}
+
+model AccountFlow {
+  id              Int                   @id @default(autoincrement())
+  userId          Int                   @map("user_id")
+  operationType   AccountOperationType  @map("operation_type")
+  amount          Decimal               @db.Decimal(15, 2)
+  currency        String                @default("USD") @db.VarChar(3)
+  balanceBefore   Decimal               @map("balance_before") @db.Decimal(15, 2)
+  balanceAfter    Decimal               @map("balance_after") @db.Decimal(15, 2)
+  targetUserId    Int?                  @map("target_user_id")
+  operatorId      Int                   @map("operator_id")
+  operatorName    String                @map("operator_name") @db.VarChar(100)
+  description     String?
+  relatedFlowId   Int?                  @map("related_flow_id")
+  businessType    String?               @map("business_type") @db.VarChar(50)
+  businessId      String?               @map("business_id") @db.VarChar(100)
+  createdAt       DateTime              @default(now()) @map("created_at")
+  user            User                  @relation("AccountFlowUser", fields: [userId], references: [id])
+  targetUser      User?                 @relation("AccountFlowTargetUser", fields: [targetUserId], references: [id])
+  operator        User                  @relation("AccountFlowOperator", fields: [operatorId], references: [id])
+
+  @@index([userId])
+  @@index([operationType])
+  @@index([operatorId])
+  @@index([targetUserId])
+  @@index([createdAt])
+  @@map("account_flows")
+}
+
+model Announcement {
+  id          Int                @id @default(autoincrement())
+  title       String             @db.VarChar(200)
+  content     String             @db.Text
+  type        AnnouncementType
+  status      AnnouncementStatus @default(DRAFT)
+  createdBy   Int                @map("created_by")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+  publishedAt DateTime?          @map("published_at")
+  creator     User               @relation("AnnouncementCreator", fields: [createdBy], references: [id])
+
+  @@index([type])
+  @@index([status])
+  @@index([createdBy])
+  @@index([createdAt])
+  @@map("announcements")
+}
+
+model OperationLog {
+  id            Int      @id @default(autoincrement())
+  cardId        String   @map("card_id") @db.VarChar(50)
+  cardNo        String   @map("card_no") @db.VarChar(20)
+  operationType String   @map("operation_type") @db.VarChar(50)
+  amount        Decimal  @db.Decimal(15, 2)
+  currency      String   @default("USD") @db.VarChar(3)
+  operatorId    Int      @map("operator_id")
+  operatorName  String   @map("operator_name") @db.VarChar(100)
+  description   String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  operator      User     @relation("OperationLogOperator", fields: [operatorId], references: [id])
+
+  @@index([cardId])
+  @@index([cardNo])
+  @@index([operationType])
+  @@index([operatorId])
+  @@index([createdAt])
+  @@map("operation_logs")
 }
