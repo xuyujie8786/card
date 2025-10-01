@@ -10,8 +10,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma/ ./prisma/
 
-# 安装依赖
-RUN npm ci --only=production
+# 安装所有依赖（包括devDependencies用于构建）
+RUN npm ci
 
 # 生成Prisma客户端
 RUN npx prisma generate
