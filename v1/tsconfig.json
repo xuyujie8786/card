@@ -18,6 +18,20 @@
       "@@test/*": ["./src/.umi-test/*"]
     }
   },
-  "include": ["src/**/*.d.ts", "src/**/*.ts", "src/**/*.tsx", "config/**/*.ts", "*.d.ts"],
-  "exclude": ["node_modules", "dist", "build", "../backend", "../database"]
+  "include": [
+    "src/**/*.d.ts", 
+    "src/**/*.ts", 
+    "src/**/*.tsx", 
+    "config/**/*.ts", 
+    "*.d.ts"
+  ],
+  "exclude": [
+    "node_modules", 
+    "dist", 
+    "build",
+    "../**",
+    "**/../backend/**",
+    "**/../database/**",
+    "**/node_modules/**"
+  ]
 }

@@ -23,6 +23,17 @@ RUN npx max setup || true
 # 复制源代码
 COPY . .
 
+# 🔍 调试：列出复制的文件，检查是否包含后端代码
+RUN echo "=== 检查复制的文件 ===" && \
+    ls -la && \
+    echo "=== 检查 src 目录 ===" && \
+    ls -la src/ && \
+    echo "=== 检查是否有 controllers (不应该存在) ===" && \
+    (ls -la src/controllers/ 2>/dev/null || echo "✅ 正常：src/controllers 不存在") && \
+    echo "=== 检查 src/services (应该只有前端 API 服务) ===" && \
+    ls -la src/services/ && \
+    echo "==========================="
+
 # 构建应用
 RUN pnpm run build
 
