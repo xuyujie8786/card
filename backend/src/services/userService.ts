@@ -5,7 +5,7 @@ import type { JwtPayload } from '../types/auth';
 import { AccountFlowService } from './accountFlowService';
 import { OperationLogService } from './operationLogService';
 import { OperationType } from '../types/operationLog';
-import { AccountOperationType } from '@prisma/client';
+import { AccountOperationType, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { DashboardService } from './dashboardService';
 
@@ -741,7 +741,7 @@ export class UserService {
         data: { 
           twoFAEnabled: false,
           twoFASecret: null,
-          twoFABackupCodes: null
+          twoFABackupCodes: Prisma.JsonNull
         }
       });
       

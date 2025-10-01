@@ -70,7 +70,7 @@ export class OperationLogService {
         data: {
           cardId: request.cardId,
           cardNo: request.cardNo,
-          operationType: operationTypeToString[request.operationType],
+          operationType: request.operationType as string,
           amount: finalAmount,
           currency: request.currency || 'USD',
           operatorId,
@@ -161,7 +161,7 @@ export class OperationLogService {
       }
 
       if (operationType) {
-        where.operationType = operationTypeToString[operationType];
+        where.operationType = operationType as string;
       }
 
       if (operatorName) {

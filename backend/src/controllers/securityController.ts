@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import speakeasy from 'speakeasy';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import logger from '../config/logger';
 import { successResponse, errorResponse } from '../utils/response';
 
@@ -353,7 +353,7 @@ export class SecurityController {
         data: { 
           twoFAEnabled: false,
           twoFASecret: null,
-          twoFABackupCodes: null
+          twoFABackupCodes: Prisma.JsonNull
         }
       });
 
