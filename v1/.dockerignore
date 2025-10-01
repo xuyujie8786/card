@@ -1,0 +1,38 @@
+# Node modules (will be installed in Docker)
+node_modules
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Build output (will be generated in Docker)
+dist
+
+# Git files
+.git
+.gitignore
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# Logs
+logs
+*.log
+
+# Test files
+__tests__
+*.test.tsx
+*.test.ts
+*.test.jsx
+*.test.js
+
+# Other
+.DS_Store
+*.bak
+tmp
+temp
+
