@@ -180,3 +180,28 @@ enum CardTxnType {
   CANCEL      @map("F")  // F类型表示撤销，不是失败
   WITHDRAWAL  @map("W")
 }
+
+enum AccountOperationType {
+  ADMIN_DEPOSIT     @map("admin_deposit")      // 管理员充值
+  ADMIN_WITHDRAW    @map("admin_withdraw")     // 管理员扣款
+  USER_DEPOSIT      @map("user_deposit")       // 用户充值
+  USER_WITHDRAW     @map("user_withdraw")      // 用户提现
+  CARD_CHARGE       @map("card_charge")        // 卡片充值
+  CARD_REFUND       @map("card_refund")        // 卡片退款
+  TRANSFER_OUT      @map("transfer_out")       // 转出
+  TRANSFER_IN       @map("transfer_in")        // 转入
+  SYSTEM_ADJUST     @map("system_adjust")      // 系统调整
+}
+
+enum AnnouncementType {
+  NOTICE    @map("notice")      // 通知
+  UPDATE    @map("update")      // 更新
+  PROMOTION @map("promotion")   // 促销
+  URGENT    @map("urgent")      // 紧急
+}
+
+enum AnnouncementStatus {
+  DRAFT     @map("draft")       // 草稿
+  PUBLISHED @map("published")   // 已发布
+  ARCHIVED  @map("archived")    // 已归档
+}
