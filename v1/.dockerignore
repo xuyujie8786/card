@@ -13,6 +13,15 @@ dist
 .git
 .gitignore
 
+# Backend code (前端构建不需要后端代码)
+../backend
+../database
+../.env
+../docker-compose.yml
+../DEPLOY_NOW.md
+../DEPLOYMENT_CHECKLIST.md
+../PRODUCTION_DEPLOYMENT_GUIDE.md
+
 # IDE files
 .vscode
 .idea
