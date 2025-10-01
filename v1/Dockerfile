@@ -7,8 +7,11 @@ WORKDIR /app
 # 复制package文件
 COPY package*.json ./
 
-# 安装依赖
-RUN npm ci
+# 调试：检查文件是否存在
+RUN ls -la && echo "Checking package files..." && ls -la package*
+
+# 安装依赖 (使用 npm install 代替 npm ci，因为可能存在 lockfile 版本问题)
+RUN npm install --production=false
 
 # 复制源代码
 COPY . .
