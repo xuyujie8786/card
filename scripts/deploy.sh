@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# ==============================================
-# 虚拟卡管理系统一键部署脚本
-# ==============================================
+# ================================================
+# 虚拟卡管理系统 - 自动部署脚本
+# ================================================
 
 set -e  # 遇到错误立即退出
 
@@ -13,528 +13,298 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# 配置变量
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-DEPLOY_ENV="${DEPLOY_ENV:-production}"
-BACKUP_BEFORE_DEPLOY="${BACKUP_BEFORE_DEPLOY:-true}"
-
-# 日志函数
-log() {
-    echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] $1${NC}"
+# 打印带颜色的消息
+print_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
 }
 
-warn() {
-    echo -e "${YELLOW}[$(date '+%Y-%m-%d %H:%M:%S')] 警告: $1${NC}"
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
 }
 
-error() {
-    echo -e "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] 错误: $1${NC}"
-    exit 1
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
 }
 
-info() {
-    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] $1${NC}"
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
 }
 
-# 显示帮助信息
-show_help() {
-    cat << EOF
-虚拟卡管理系统部署脚本
-
-使用方法:
-    $0 [选项] [操作]
-
-操作:
-    install     初始安装（默认）
-    update      更新现有部署
-    restart     重启所有服务
-    stop        停止所有服务
-    status      显示服务状态
-    logs        显示服务日志
-
-选项:
-    -e, --env ENV          部署环境 (dev|prod) [默认: production]
-    -b, --backup           部署前备份数据 [默认: true]
-    -m, --monitoring       启用监控组件
-    -f, --force            强制执行，跳过确认
-    -h, --help             显示此帮助信息
-
-示例:
-    $0                     # 默认生产环境安装
-    $0 -e dev              # 开发环境部署
-    $0 -m update           # 更新并启用监控
-    $0 status              # 查看服务状态
-
-EOF
+# 检查是否为 root 或有 sudo 权限
+check_permissions() {
+    if [[ $EUID -ne 0 ]] && ! sudo -n true 2>/dev/null; then
+        print_error "需要 root 权限或 sudo 权限"
+        exit 1
+    fi
+    print_success "权限检查通过"
 }
 
 # 检查系统要求
-check_requirements() {
-    log "检查系统要求..."
+check_system() {
+    print_info "检查系统要求..."
     
-    # 检查操作系统
-    if [[ "$OSTYPE" != "linux-gnu"* ]]; then
-        error "此脚本仅支持Linux系统"
+    # 检查内存
+    total_mem=$(free -m | awk '/^Mem:/{print $2}')
+    if [ "$total_mem" -lt 3800 ]; then
+        print_warning "系统内存少于4GB，可能影响性能"
+    else
+        print_success "内存充足: ${total_mem}MB"
     fi
     
-    # 检查Docker
-    if ! command -v docker &> /dev/null; then
-        error "未找到Docker，请先安装Docker"
+    # 检查磁盘空间
+    available_space=$(df -BG / | awk 'NR==2 {print $4}' | sed 's/G//')
+    if [ "$available_space" -lt 10 ]; then
+        print_error "可用磁盘空间少于10GB"
+        exit 1
+    else
+        print_success "磁盘空间充足: ${available_space}GB"
     fi
-    
-    # 检查Docker Compose
-    if ! docker compose version &> /dev/null; then
-        error "未找到Docker Compose，请安装Docker Compose Plugin"
-    fi
-    
-    # 检查Git
-    if ! command -v git &> /dev/null; then
-        error "未找到Git，请先安装Git"
-    fi
-    
-    # 检查系统资源
-    local total_memory=$(free -m | grep '^Mem:' | awk '{print $2}')
-    if [ "$total_memory" -lt 3800 ]; then
-        warn "系统内存少于4GB，可能影响性能"
-    fi
-    
-    local available_disk=$(df -m "$PROJECT_DIR" | tail -1 | awk '{print $4}')
-    if [ "$available_disk" -lt 10240 ]; then
-        warn "可用磁盘空间少于10GB，建议释放更多空间"
-    fi
-    
-    log "系统检查完成"
 }
 
-# 创建必要的目录
-create_directories() {
-    log "创建必要的目录..."
+# 安装 Docker
+install_docker() {
+    if command -v docker &> /dev/null; then
+        print_success "Docker 已安装"
+        docker --version
+    else
+        print_info "正在安装 Docker..."
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sudo sh get-docker.sh
+        sudo systemctl enable docker
+        sudo systemctl start docker
+        rm get-docker.sh
+        print_success "Docker 安装完成"
+    fi
     
-    mkdir -p /opt/backups/vcard
-    mkdir -p /var/log/vcard
-    mkdir -p "$PROJECT_DIR/ssl-certs"
+    # 检查 Docker Compose
+    if docker compose version &> /dev/null; then
+        print_success "Docker Compose 已安装"
+        docker compose version
+    else
+        print_info "正在安装 Docker Compose..."
+        sudo apt-get update
+        sudo apt-get install -y docker-compose-plugin
+        print_success "Docker Compose 安装完成"
+    fi
+}
+
+# 克隆或更新项目
+setup_project() {
+    PROJECT_DIR="$HOME/vcard-system"
     
-    # 设置权限
-    chmod 755 /opt/backups/vcard
-    chmod 755 /var/log/vcard
+    if [ -d "$PROJECT_DIR" ]; then
+        print_warning "项目目录已存在，是否要重新克隆？(y/n)"
+        read -r response
+        if [[ "$response" =~ ^[Yy]$ ]]; then
+            print_info "备份旧项目..."
+            mv "$PROJECT_DIR" "${PROJECT_DIR}_backup_$(date +%Y%m%d_%H%M%S)"
+            print_info "克隆项目..."
+            git clone https://github.com/xuyujie8786/vcard.git "$PROJECT_DIR"
+        else
+            print_info "更新现有项目..."
+            cd "$PROJECT_DIR"
+            git pull origin main
+        fi
+    else
+        print_info "克隆项目..."
+        git clone https://github.com/xuyujie8786/vcard.git "$PROJECT_DIR"
+    fi
     
-    log "目录创建完成"
+    cd "$PROJECT_DIR"
+    print_success "项目准备完成"
 }
 
 # 配置环境变量
 setup_environment() {
-    log "配置环境变量..."
+    print_info "配置环境变量..."
     
-    if [ ! -f "$PROJECT_DIR/.env" ]; then
-        if [ -f "$PROJECT_DIR/env.example" ]; then
-            cp "$PROJECT_DIR/env.example" "$PROJECT_DIR/.env"
-            warn "已创建.env文件，请根据需要修改配置"
-        else
-            error "未找到env.example文件"
+    if [ -f ".env" ]; then
+        print_warning ".env 文件已存在，是否覆盖？(y/n)"
+        read -r response
+        if [[ ! "$response" =~ ^[Yy]$ ]]; then
+            print_info "保留现有 .env 文件"
+            return
         fi
+        # 备份现有文件
+        cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
     fi
     
-    # 生成随机密码（如果未设置）
-    if ! grep -q "^JWT_SECRET=" "$PROJECT_DIR/.env" || grep -q "your_jwt_secret" "$PROJECT_DIR/.env"; then
-        local jwt_secret=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-64)
-        sed -i "s|JWT_SECRET=.*|JWT_SECRET=$jwt_secret|" "$PROJECT_DIR/.env"
-        log "已生成JWT密钥"
-    fi
+    # 生成随机密码
+    DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
+    REDIS_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
+    JWT_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-64)
     
-    if ! grep -q "^DB_PASSWORD=" "$PROJECT_DIR/.env" || grep -q "secure_password123" "$PROJECT_DIR/.env"; then
-        local db_password=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
-        sed -i "s|DB_PASSWORD=.*|DB_PASSWORD=$db_password|" "$PROJECT_DIR/.env"
-        log "已生成数据库密码"
-    fi
+    # 创建 .env 文件
+    cat > .env << EOF
+# ==============================================
+# 虚拟卡管理系统环境变量配置
+# 自动生成于: $(date)
+# ==============================================
+
+# ==================== 应用配置 ====================
+NODE_ENV=production
+LOG_LEVEL=info
+TZ=Asia/Shanghai
+
+# ==================== 端口配置 ====================
+FRONTEND_PORT=8000
+BACKEND_PORT=3001
+DB_PORT=5432
+REDIS_PORT=6379
+
+# ==================== 数据库配置 ====================
+DB_NAME=vcard_db
+DB_USER=vcard_user
+DB_PASSWORD=${DB_PASSWORD}
+DATABASE_URL=postgresql://vcard_user:${DB_PASSWORD}@database:5432/vcard_db
+
+# ==================== Redis配置 ====================
+REDIS_PASSWORD=${REDIS_PASSWORD}
+REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+
+# ==================== JWT配置 ====================
+JWT_SECRET=${JWT_SECRET}
+JWT_EXPIRES_IN=7d
+
+# ==================== 卡商API配置 ====================
+CARD_PROVIDER_TOKEN=w5Epkw0M257ocOwB
+CARD_PROVIDER_URL=https://openapi-hk.vccdaddy.com
+CARD_PROVIDER_AES_KEY=eoC31VaznV1ZBG6T
+
+# ==================== 安全配置 ====================
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# ==================== 定时同步配置 ====================
+SYNC_ENABLED=true
+SYNC_AUTH_PREVIOUS_CRON=0 1 * * *
+SYNC_AUTH_CURRENT_CRON=0 13 * * *
+SYNC_SETTLE_PREVIOUS_CRON=30 1 * * *
+SYNC_SETTLE_CURRENT_CRON=30 13 * * *
+EOF
     
-    if ! grep -q "^REDIS_PASSWORD=" "$PROJECT_DIR/.env" || grep -q "redis_password123" "$PROJECT_DIR/.env"; then
-        local redis_password=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
-        sed -i "s|REDIS_PASSWORD=.*|REDIS_PASSWORD=$redis_password|" "$PROJECT_DIR/.env"
-        log "已生成Redis密码"
-    fi
-    
-    log "环境变量配置完成"
+    chmod 600 .env
+    print_success "环境变量配置完成（密码已自动生成）"
 }
 
-# 备份现有数据
-backup_data() {
-    if [ "$BACKUP_BEFORE_DEPLOY" = "true" ] && docker-compose ps | grep -q "Up"; then
-        log "备份现有数据..."
-        
-        if [ -f "$PROJECT_DIR/scripts/backup.sh" ]; then
-            "$PROJECT_DIR/scripts/backup.sh"
-            log "数据备份完成"
-        else
-            warn "备份脚本不存在，跳过备份"
-        fi
-    fi
+# 构建和启动服务
+deploy_services() {
+    print_info "构建 Docker 镜像..."
+    sudo docker-compose build --no-cache
+    print_success "镜像构建完成"
+    
+    print_info "启动服务..."
+    sudo docker-compose up -d
+    print_success "服务已启动"
+    
+    # 等待服务启动
+    print_info "等待数据库启动..."
+    sleep 30
+    
+    # 检查服务状态
+    print_info "检查服务状态..."
+    sudo docker-compose ps
 }
 
-# 拉取最新镜像
-pull_images() {
-    log "拉取Docker镜像..."
+# 初始化数据库
+init_database() {
+    print_info "运行数据库迁移..."
     
-    cd "$PROJECT_DIR"
-    
-    case $DEPLOY_ENV in
-        "dev")
-            docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull
-            ;;
-        "prod"|"production")
-            docker-compose pull
-            ;;
-        *)
-            error "未知的部署环境: $DEPLOY_ENV"
-            ;;
-    esac
-    
-    log "镜像拉取完成"
-}
-
-# 构建应用镜像
-build_images() {
-    log "构建应用镜像..."
-    
-    cd "$PROJECT_DIR"
-    
-    case $DEPLOY_ENV in
-        "dev")
-            docker-compose -f docker-compose.yml -f docker-compose.dev.yml build --no-cache
-            ;;
-        "prod"|"production")
-            docker-compose build --no-cache
-            ;;
-    esac
-    
-    log "镜像构建完成"
-}
-
-# 启动服务
-start_services() {
-    log "启动服务..."
-    
-    cd "$PROJECT_DIR"
-    
-    # 构建compose命令
-    local compose_files="docker-compose.yml"
-    
-    if [ "$DEPLOY_ENV" = "dev" ]; then
-        compose_files="$compose_files -f docker-compose.dev.yml"
-    fi
-    
-    if [ "$ENABLE_MONITORING" = "true" ]; then
-        compose_files="$compose_files -f docker-compose.monitoring.yml"
-    fi
-    
-    # 启动服务
-    docker-compose $compose_files up -d
-    
-    log "服务启动完成"
-}
-
-# 等待服务就绪
-wait_for_services() {
-    log "等待服务就绪..."
-    
-    local max_attempts=60
-    local attempt=0
-    
-    while [ $attempt -lt $max_attempts ]; do
-        if curl -f http://localhost:${BACKEND_PORT:-3001}/api/health &> /dev/null; then
-            log "后端服务就绪"
-            break
-        fi
-        
-        attempt=$((attempt + 1))
-        sleep 5
-        info "等待后端服务启动... ($attempt/$max_attempts)"
-    done
-    
-    if [ $attempt -eq $max_attempts ]; then
-        error "后端服务启动超时"
-    fi
-    
-    # 检查前端服务
+    # 等待数据库完全启动
+    max_attempts=30
     attempt=0
+    
     while [ $attempt -lt $max_attempts ]; do
-        if curl -f http://localhost:${FRONTEND_PORT:-8000}/health &> /dev/null; then
-            log "前端服务就绪"
+        if sudo docker-compose exec -T database pg_isready -U vcard_user &> /dev/null; then
+            print_success "数据库已就绪"
             break
         fi
-        
         attempt=$((attempt + 1))
-        sleep 5
-        info "等待前端服务启动... ($attempt/$max_attempts)"
+        echo -n "."
+        sleep 2
     done
     
     if [ $attempt -eq $max_attempts ]; then
-        error "前端服务启动超时"
+        print_error "数据库启动超时"
+        return 1
     fi
+    
+    # 运行迁移
+    sudo docker-compose exec backend npx prisma migrate deploy || {
+        print_warning "迁移失败，尝试生成 Prisma 客户端..."
+        sudo docker-compose exec backend npx prisma generate
+        sudo docker-compose exec backend npx prisma migrate deploy
+    }
+    
+    print_success "数据库初始化完成"
 }
 
-# 运行数据库迁移
-run_migrations() {
-    log "运行数据库迁移..."
-    
-    cd "$PROJECT_DIR"
-    
-    # 等待数据库就绪
-    sleep 10
-    
-    # 运行Prisma迁移
-    if docker-compose exec -T backend npx prisma migrate deploy; then
-        log "数据库迁移完成"
+# 配置防火墙
+setup_firewall() {
+    if command -v ufw &> /dev/null; then
+        print_info "配置 UFW 防火墙..."
+        sudo ufw allow 22/tcp comment 'SSH'
+        sudo ufw allow 8000/tcp comment 'Frontend'
+        sudo ufw allow 3001/tcp comment 'Backend API'
+        sudo ufw --force enable
+        print_success "防火墙配置完成"
     else
-        warn "数据库迁移失败，可能是首次部署"
-    fi
-}
-
-# 创建初始管理员用户
-create_admin_user() {
-    log "创建初始管理员用户..."
-    
-    cd "$PROJECT_DIR"
-    
-    # 检查是否已存在管理员用户
-    if docker-compose exec -T backend node -e "
-        const { PrismaClient } = require('@prisma/client');
-        const prisma = new PrismaClient();
-        prisma.user.findFirst({ where: { role: 'super_admin' } })
-            .then(user => {
-                if (user) {
-                    console.log('EXISTS');
-                } else {
-                    console.log('NOT_EXISTS');
-                }
-            })
-            .catch(() => console.log('ERROR'));
-    " 2>/dev/null | grep -q "EXISTS"; then
-        info "管理员用户已存在"
-        return
-    fi
-    
-    # 创建管理员用户
-    if docker-compose exec -T backend npm run db:seed &> /dev/null; then
-        log "初始管理员用户创建完成"
-        info "默认管理员账户: admin / admin123"
-        warn "请及时修改默认密码"
-    else
-        warn "管理员用户创建失败"
+        print_warning "UFW 未安装，请手动配置防火墙"
     fi
 }
 
 # 显示部署信息
-show_deployment_info() {
-    log "部署完成！"
+show_deploy_info() {
+    SERVER_IP=$(hostname -I | awk '{print $1}')
     
     echo ""
-    echo "==================== 部署信息 ===================="
-    echo "部署环境: $DEPLOY_ENV"
-    echo "项目目录: $PROJECT_DIR"
+    echo "═══════════════════════════════════════════════════════"
+    print_success "部署完成！"
+    echo "═══════════════════════════════════════════════════════"
     echo ""
-    echo "服务访问地址:"
-    echo "  前端应用: http://localhost:${FRONTEND_PORT:-8000}"
-    echo "  后端API:  http://localhost:${BACKEND_PORT:-3001}"
+    echo "📱 前端访问地址:"
+    echo "   http://${SERVER_IP}:8000"
     echo ""
-    
-    if [ "$ENABLE_MONITORING" = "true" ]; then
-        echo "监控服务:"
-        echo "  Grafana:     http://localhost:3000 (admin/admin123)"
-        echo "  Prometheus:  http://localhost:9090"
-        echo "  AlertManager: http://localhost:9093"
-        echo ""
-    fi
-    
-    if [ "$DEPLOY_ENV" = "dev" ]; then
-        echo "开发工具:"
-        echo "  数据库管理: http://localhost:8080"
-        echo "  Redis管理:  http://localhost:8081"
-        echo ""
-    fi
-    
-    echo "默认管理员账户:"
-    echo "  用户名: admin"
-    echo "  密码:   admin123"
+    echo "🔌 后端API地址:"
+    echo "   http://${SERVER_IP}:3001"
     echo ""
-    echo "重要提醒:"
-    echo "  1. 请及时修改默认密码"
-    echo "  2. 请配置HTTPS证书（生产环境）"
-    echo "  3. 请设置防火墙规则"
-    echo "  4. 请配置定时备份"
-    echo "=================================================="
-}
-
-# 显示服务状态
-show_status() {
-    cd "$PROJECT_DIR"
-    
-    echo "==================== 服务状态 ===================="
-    docker-compose ps
+    echo "🔑 默认管理员账户:"
+    echo "   用户名: admin"
+    echo "   密码: admin123"
+    echo "   ⚠️  请立即登录后修改密码！"
     echo ""
-    
-    echo "==================== 系统资源 ===================="
-    docker stats --no-stream
+    echo "📊 查看服务状态:"
+    echo "   sudo docker-compose ps"
     echo ""
-    
-    echo "==================== 健康检查 ===================="
-    
-    # 检查后端健康状态
-    if curl -f http://localhost:${BACKEND_PORT:-3001}/api/health &> /dev/null; then
-        echo "✅ 后端服务: 正常"
-    else
-        echo "❌ 后端服务: 异常"
-    fi
-    
-    # 检查前端健康状态
-    if curl -f http://localhost:${FRONTEND_PORT:-8000}/health &> /dev/null; then
-        echo "✅ 前端服务: 正常"
-    else
-        echo "❌ 前端服务: 异常"
-    fi
-    
-    echo "=================================================="
-}
-
-# 显示服务日志
-show_logs() {
-    cd "$PROJECT_DIR"
-    
-    local service="$1"
-    
-    if [ -n "$service" ]; then
-        docker-compose logs -f "$service"
-    else
-        docker-compose logs -f
-    fi
-}
-
-# 停止服务
-stop_services() {
-    log "停止服务..."
-    
-    cd "$PROJECT_DIR"
-    docker-compose down
-    
-    log "服务已停止"
-}
-
-# 重启服务
-restart_services() {
-    log "重启服务..."
-    
-    stop_services
-    start_services
-    wait_for_services
-    
-    log "服务重启完成"
-}
-
-# 更新部署
-update_deployment() {
-    log "更新部署..."
-    
-    # 备份数据
-    backup_data
-    
-    # 拉取最新代码（如果是git仓库）
-    if [ -d "$PROJECT_DIR/.git" ]; then
-        cd "$PROJECT_DIR"
-        git pull origin main || git pull origin master
-    fi
-    
-    # 重新构建和启动
-    build_images
-    stop_services
-    start_services
-    wait_for_services
-    run_migrations
-    
-    log "更新完成"
+    echo "📝 查看日志:"
+    echo "   sudo docker-compose logs -f backend"
+    echo ""
+    echo "🔄 重启服务:"
+    echo "   sudo docker-compose restart"
+    echo ""
+    echo "═══════════════════════════════════════════════════════"
 }
 
 # 主函数
 main() {
-    local action="install"
-    local force_flag=""
+    echo ""
+    echo "═══════════════════════════════════════════════════════"
+    echo "  虚拟卡管理系统 - 自动部署脚本"
+    echo "═══════════════════════════════════════════════════════"
+    echo ""
     
-    # 解析命令行参数
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            -e|--env)
-                DEPLOY_ENV="$2"
-                shift 2
-                ;;
-            -b|--backup)
-                BACKUP_BEFORE_DEPLOY="true"
-                shift
-                ;;
-            -m|--monitoring)
-                ENABLE_MONITORING="true"
-                shift
-                ;;
-            -f|--force)
-                force_flag="--force"
-                shift
-                ;;
-            -h|--help)
-                show_help
-                exit 0
-                ;;
-            install|update|restart|stop|status|logs)
-                action="$1"
-                shift
-                ;;
-            *)
-                error "未知选项: $1"
-                ;;
-        esac
-    done
+    check_permissions
+    check_system
+    install_docker
+    setup_project
+    setup_environment
+    deploy_services
+    init_database
+    setup_firewall
+    show_deploy_info
     
-    # 切换到项目目录
-    cd "$PROJECT_DIR"
-    
-    # 执行操作
-    case $action in
-        "install")
-            log "开始安装虚拟卡管理系统..."
-            check_requirements
-            create_directories
-            setup_environment
-            backup_data
-            pull_images
-            build_images
-            start_services
-            wait_for_services
-            run_migrations
-            create_admin_user
-            show_deployment_info
-            ;;
-        "update")
-            update_deployment
-            show_deployment_info
-            ;;
-        "restart")
-            restart_services
-            ;;
-        "stop")
-            stop_services
-            ;;
-        "status")
-            show_status
-            ;;
-        "logs")
-            show_logs "$2"
-            ;;
-        *)
-            error "未知操作: $action"
-            ;;
-    esac
+    print_success "全部完成！🎉"
 }
 
-# 脚本入口
-if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
-    main "$@"
-fi
-
-
+# 运行主函数
+main "$@"
