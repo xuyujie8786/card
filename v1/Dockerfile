@@ -4,15 +4,18 @@ FROM node:20-alpine AS builder
 # 设置工作目录
 WORKDIR /app
 
+# 安装 pnpm (比 npm 快 2-3 倍)
+RUN npm install -g pnpm
+
 # 复制package文件
 COPY package*.json ./
 
-# 使用淘宝镜像加速 npm 安装
-RUN npm config set registry https://registry.npmmirror.com && \
-    npm config set strict-ssl false
+# 使用淘宝镜像加速 pnpm 安装
+RUN pnpm config set registry https://registry.npmmirror.com && \
+    pnpm config set strict-ssl false
 
-# 安装依赖 (跳过 postinstall 脚本加速安装)
-RUN npm install --production=false --force --no-audit --no-fund --ignore-scripts
+# 安装依赖 (pnpm 使用硬链接，速度更快)
+RUN pnpm install --shamefully-hoist --ignore-scripts
 
 # 手动运行必要的 setup
 RUN npx max setup || true
@@ -21,7 +24,7 @@ RUN npx max setup || true
 COPY . .
 
 # 构建应用
-RUN npm run build
+RUN pnpm run build
 
 # 生产阶段
 FROM nginx:alpine AS production
