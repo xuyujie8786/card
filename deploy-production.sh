@@ -4,8 +4,6 @@
 # 虚拟卡管理系统 - 生产环境一键部署脚本
 # ==============================================
 
-set -e  # 遇到错误立即退出
-
 # 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -13,7 +11,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# 检测是否需要sudo
+# 检测是否需要sudo (在set -e之前执行)
 DOCKER_CMD="docker"
 DOCKER_COMPOSE_CMD="docker-compose"
 
@@ -22,8 +20,13 @@ if ! docker ps >/dev/null 2>&1; then
         DOCKER_CMD="sudo docker"
         DOCKER_COMPOSE_CMD="sudo docker-compose"
         echo -e "${YELLOW}[INFO]${NC} 检测到需要sudo权限运行Docker"
+    else
+        echo -e "${RED}[ERROR]${NC} 无法运行Docker，请检查Docker是否已安装或当前用户权限"
+        exit 1
     fi
 fi
+
+set -e  # 遇到错误立即退出
 
 # 打印函数
 print_info() {
