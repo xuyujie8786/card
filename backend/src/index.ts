@@ -20,7 +20,7 @@ async function startServer() {
     syncScheduler.start();
 
     // 启动服务器
-    const server = app.listen(config.port, () => {
+    const server = app.listen(config.port, '0.0.0.0', () => {
       logger.info(`Server is running on port ${config.port} in ${config.nodeEnv} mode`);
     });
 
