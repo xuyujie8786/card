@@ -11,7 +11,7 @@ export const API_CONFIG = {
   useMock: USE_MOCK,
   
   // 后端API基础URL
-  baseURL: 'http://localhost:3001/api',
+  baseURL: '/api',
     
   // API超时时间
   timeout: 10000,
