@@ -4,17 +4,20 @@
 # ==============================================
 
 # ==================== 构建阶段 ====================
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 # 设置工作目录
 WORKDIR /app
 
 # 安装构建依赖
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     python3 \
     make \
     g++ \
-    curl
+    curl \
+    openssl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖配置文件
 COPY package*.json ./
@@ -39,22 +42,23 @@ RUN npm run build
 RUN npm prune --production
 
 # ==================== 生产阶段 ====================
-FROM node:20-alpine AS production
+FROM node:20-slim AS production
 
-# 安装运行时依赖（包含OpenSSL 1.1.x以兼容Prisma）
-RUN apk add --no-cache \
+# 安装运行时依赖（包含OpenSSL以兼容Prisma）
+RUN apt-get update && apt-get install -y \
     curl \
     tzdata \
     tini \
     openssl \
-    openssl1.1-compat
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # 设置时区
 ENV TZ=Asia/Shanghai
 
 # 创建非root用户
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S vcard -u 1001 -G nodejs
+RUN groupadd -g 1001 nodejs && \
+    useradd -r -u 1001 -g nodejs vcard
 
 # 设置工作目录
 WORKDIR /app
