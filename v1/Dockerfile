@@ -58,11 +58,11 @@ RUN mkdir -p /var/log/nginx && \
     chown -R nginx:nginx /usr/share/nginx/html
 
 # 暴露端口
-EXPOSE 80
+EXPOSE 3001
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost || exit 1
+  CMD curl -f http://localhost:3001 || exit 1
 
 # 启动nginx
 CMD ["nginx", "-g", "daemon off;"]
