@@ -8,6 +8,14 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+.env.production*
+env.production*
+
+# 敏感信息
+*.pem
+*.key
+*PASSWORDS.txt
+.test-token
 
 # 数据库数据（重要：不上传）
 data/
