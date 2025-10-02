@@ -12,13 +12,11 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 检测是否需要sudo (在set -e之前执行)
-DOCKER_CMD="docker"
-DOCKER_COMPOSE_CMD="docker-compose"
+USE_SUDO=""
 
 if ! docker ps >/dev/null 2>&1; then
     if sudo docker ps >/dev/null 2>&1; then
-        DOCKER_CMD="sudo docker"
-        DOCKER_COMPOSE_CMD="sudo docker-compose"
+        USE_SUDO="sudo"
         echo -e "${YELLOW}[INFO]${NC} 检测到需要sudo权限运行Docker"
     else
         echo -e "${RED}[ERROR]${NC} 无法运行Docker，请检查Docker是否已安装或当前用户权限"
@@ -132,9 +130,9 @@ backup_database() {
         BACKUP_FILE="vcard_db_backup_$(date +%Y%m%d_%H%M%S).dump"
         
         # 检查容器是否运行
-        if $DOCKER_CMD ps | grep -q vcard-postgres; then
+        if $USE_SUDO docker ps | grep -q vcard-postgres; then
             # 尝试备份，如果失败则继续
-            if $DOCKER_CMD exec vcard-postgres pg_dump -U ${DB_USER} ${DB_NAME} > "$BACKUP_FILE" 2>/dev/null; then
+            if $USE_SUDO docker exec vcard-postgres pg_dump -U ${DB_USER} ${DB_NAME} > "$BACKUP_FILE" 2>/dev/null; then
                 print_success "数据库已备份至: $BACKUP_FILE"
             else
                 print_warning "数据库备份失败（可能是新部署或配置不匹配），继续部署..."
@@ -148,14 +146,14 @@ backup_database() {
 # 停止旧容器
 stop_old_containers() {
     print_info "停止旧容器..."
-    $DOCKER_COMPOSE_CMD -f docker-compose.production.yml --env-file .env.production down || true
+    $USE_SUDO docker-compose -f docker-compose.production.yml --env-file .env.production down || true
     print_success "旧容器已停止"
 }
 
 # 清理旧镜像
 cleanup_old_images() {
     print_info "清理未使用的Docker资源..."
-    $DOCKER_CMD system prune -f
+    $USE_SUDO docker system prune -f
     print_success "清理完成"
 }
 
@@ -165,11 +163,11 @@ build_images() {
     
     # 构建后端
     print_info "构建后端镜像..."
-    $DOCKER_CMD build -f backend/Dockerfile.optimized -t vcard-backend:latest ./backend
+    $USE_SUDO docker build -f backend/Dockerfile.optimized -t vcard-backend:latest ./backend
     
     # 构建前端
     print_info "构建前端镜像..."
-    $DOCKER_CMD build -f v1/Dockerfile.optimized -t vcard-frontend:latest ./v1
+    $USE_SUDO docker build -f v1/Dockerfile.optimized -t vcard-frontend:latest ./v1
     
     print_success "镜像构建完成"
 }
@@ -177,7 +175,7 @@ build_images() {
 # 启动服务
 start_services() {
     print_info "启动服务..."
-    $DOCKER_COMPOSE_CMD -f docker-compose.production.yml --env-file .env.production up -d
+    $USE_SUDO docker-compose -f docker-compose.production.yml --env-file .env.production up -d
     print_success "服务已启动"
 }
 
@@ -207,7 +205,7 @@ wait_for_services() {
     
     if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
         print_error "后端服务启动超时"
-        $DOCKER_COMPOSE_CMD -f docker-compose.production.yml logs backend
+        $USE_SUDO docker-compose -f docker-compose.production.yml logs backend
         exit 1
     fi
     
@@ -227,10 +225,10 @@ run_migrations() {
     print_info "运行数据库迁移..."
     
     # 生成Prisma客户端
-    $DOCKER_CMD exec vcard-backend npx prisma generate || true
+    $USE_SUDO docker exec vcard-backend npx prisma generate || true
     
     # 运行迁移
-    $DOCKER_CMD exec vcard-backend npx prisma migrate deploy || true
+    $USE_SUDO docker exec vcard-backend npx prisma migrate deploy || true
     
     print_success "数据库迁移完成"
 }
@@ -239,7 +237,7 @@ run_migrations() {
 show_status() {
     echo ""
     print_info "服务状态："
-    $DOCKER_COMPOSE_CMD -f docker-compose.production.yml ps
+    $USE_SUDO docker-compose -f docker-compose.production.yml ps
     
     echo ""
     print_info "访问信息："
