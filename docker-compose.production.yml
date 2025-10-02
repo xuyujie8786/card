@@ -12,6 +12,8 @@ services:
   database:
     image: postgres:15-alpine
     container_name: vcard-postgres
+    env_file:
+      - .env.production
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -22,7 +24,7 @@ services:
       - vcard-network
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,6 +32,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: vcard-redis
+    env_file:
+      - .env.production
     command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data

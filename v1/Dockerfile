@@ -3,7 +3,8 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+# 使用 npm install 而不是 npm ci，因为 package-lock.json 可能不在构建上下文中
+RUN npm install --legacy-peer-deps
 
 COPY . .
 

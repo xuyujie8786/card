@@ -50,3 +50,8 @@ coverage/
 
 # Docker volumes
 redis-data/
+.env.bak
+.playwright-mcp/
+LOGIN_CREDENTIALS.md
+.test-token
+*.dump
