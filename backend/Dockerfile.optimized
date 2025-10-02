@@ -41,11 +41,13 @@ RUN npm prune --production
 # ==================== 生产阶段 ====================
 FROM node:20-alpine AS production
 
-# 安装运行时依赖
+# 安装运行时依赖（包含OpenSSL 1.1.x以兼容Prisma）
 RUN apk add --no-cache \
     curl \
     tzdata \
-    tini
+    tini \
+    openssl \
+    openssl1.1-compat
 
 # 设置时区
 ENV TZ=Asia/Shanghai
