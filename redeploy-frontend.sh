@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# 重新部署前端（统一使用 3001 端口）
+# 重新部署前端（前端 8000 对外，容器内 nginx 使用 80）
 # 使用方法：将此脚本上传到服务器执行
 
 set -e
 
-echo "🔧 重新部署前端（统一 3001 端口）..."
+echo "🔧 重新部署前端（端口：8000 -> 80）..."
 
 # 进入项目目录
 cd ~/vcard
@@ -65,7 +65,7 @@ sudo docker exec vcard-frontend netstat -tlnp | grep nginx
 
 echo ""
 echo "4. 测试访问（容器内）："
-sudo docker exec vcard-frontend curl -I http://localhost:3001
+sudo docker exec vcard-frontend curl -I http://localhost:80
 
 echo ""
 echo "5. 测试访问（宿主机）："

@@ -199,7 +199,7 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "${FRONTEND_PORT:-8000}:3001"  # 对外暴露
+      - "${FRONTEND_PORT:-8000}:80"  # 对外暴露
     networks:
       vcard-network:
         ipv4_address: 172.20.0.5
@@ -207,7 +207,7 @@ services:
     volumes:
       - nginx_logs:/var/log/nginx
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3001/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:80/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
