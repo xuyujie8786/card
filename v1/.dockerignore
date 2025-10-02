@@ -1,47 +1,40 @@
-# Node modules (will be installed in Docker)
-node_modules
+# 依赖
+node_modules/
 
-# Environment files
-.env
-.env.local
-.env.*.local
+# 构建产物
+dist/
+build/
+.umi/
+.umi-production/
 
-# Build output (will be generated in Docker)
-dist
-
-# Git files
-.git
-.gitignore
-
-# Backend code (前端构建不需要后端代码)
-../backend
-../database
-../.env
-../docker-compose.yml
-../DEPLOY_NOW.md
-../DEPLOYMENT_CHECKLIST.md
-../PRODUCTION_DEPLOYMENT_GUIDE.md
-
-# IDE files
-.vscode
-.idea
-*.swp
-*.swo
-
-# Logs
-logs
+# 日志
+logs/
 *.log
 
-# Test files
-__tests__
-*.test.tsx
-*.test.ts
-*.test.jsx
-*.test.js
+# 测试
+coverage/
+.nyc_output/
 
-# Other
+# 环境变量
+.env
+.env.*
+
+# 临时文件
+*.tmp
 .DS_Store
-*.bak
-tmp
-temp
 
+# 开发文件
+*.md
+.vscode/
+.idea/
+
+# Mock数据（生产不需要）
+mock/
+
+# 测试文件
+tests/
+**/*.test.tsx
+**/*.spec.tsx
+
+# 不要包含后端代码！
+../backend/

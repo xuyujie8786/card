@@ -20,11 +20,10 @@ model User {
   parentId            Int?              @map("parent_id")
   status              UserStatus        @default(ACTIVE)
   balance             Decimal           @default(0.00) @db.Decimal(15, 2)
-  creditLimit         Decimal           @default(0.00) @map("credit_limit") @db.Decimal(15, 2)
   currency            String            @default("USD") @db.VarChar(3)
   twoFAEnabled        Boolean           @default(false) @map("two_fa_enabled")
   twoFASecret         String?           @map("two_fa_secret") @db.VarChar(255)
-  twoFABackupCodes    Json?             @map("two_fa_backup_codes")
+  twoFABackupCodes    String?           @map("two_fa_backup_codes") @db.Text
   createdAt           DateTime          @default(now()) @map("created_at")
   updatedAt           DateTime          @updatedAt @map("updated_at")
   cardTransactions    CardTransaction[] @relation("UserCardTransactions")
@@ -35,7 +34,6 @@ model User {
   children            User[]            @relation("UserHierarchy")
   createdCards        VirtualCard[]     @relation("CardCreator")
   virtualCards        VirtualCard[]
-  accountFlows        AccountFlow[]     @relation("AccountFlowUser")
   targetAccountFlows  AccountFlow[]     @relation("AccountFlowTargetUser")
   operatedAccountFlows AccountFlow[]    @relation("AccountFlowOperator")
   announcements       Announcement[]    @relation("AnnouncementCreator")
@@ -204,10 +202,17 @@ enum AccountOperationType {
   WITHDRAW          @map("withdraw")           // 提现（通用）
 }
 
+enum OperationType {
+  CREATE_CARD @map("create_card")
+  DELETE_CARD @map("delete_card")
+  RECHARGE    @map("recharge")
+  WITHDRAW    @map("withdraw")
+  FREEZE      @map("freeze")
+  UNFREEZE    @map("unfreeze")
+}
+
 enum AnnouncementType {
-  NOTICE    @map("notice")      // 通知
-  UPDATE    @map("update")      // 更新
-  PROMOTION @map("promotion")   // 促销
+  NORMAL    @map("normal")      // 普通
   URGENT    @map("urgent")      // 紧急
 }
 
@@ -220,28 +225,23 @@ enum AnnouncementStatus {
 
 model AccountFlow {
   id              Int                   @id @default(autoincrement())
-  userId          Int                   @map("user_id")
-  operationType   AccountOperationType  @map("operation_type")
-  amount          Decimal               @db.Decimal(15, 2)
-  currency        String                @default("USD") @db.VarChar(3)
-  balanceBefore   Decimal               @map("balance_before") @db.Decimal(15, 2)
-  balanceAfter    Decimal               @map("balance_after") @db.Decimal(15, 2)
-  targetUserId    Int?                  @map("target_user_id")
   operatorId      Int                   @map("operator_id")
   operatorName    String                @map("operator_name") @db.VarChar(100)
-  description     String?
-  relatedFlowId   Int?                  @map("related_flow_id")
+  targetUserId    Int                   @map("target_user_id")
+  targetName      String                @map("target_name") @db.VarChar(100)
+  operationType   AccountOperationType  @map("operation_type")
+  amount          Decimal               @db.Decimal(15, 4)
+  currency        String                @default("USD") @db.VarChar(3)
+  description     String?               @db.VarChar(500)
   businessType    String?               @map("business_type") @db.VarChar(50)
   businessId      String?               @map("business_id") @db.VarChar(100)
   createdAt       DateTime              @default(now()) @map("created_at")
-  user            User                  @relation("AccountFlowUser", fields: [userId], references: [id])
-  targetUser      User?                 @relation("AccountFlowTargetUser", fields: [targetUserId], references: [id])
+  targetUser      User                  @relation("AccountFlowTargetUser", fields: [targetUserId], references: [id])
   operator        User                  @relation("AccountFlowOperator", fields: [operatorId], references: [id])
 
-  @@index([userId])
-  @@index([operationType])
   @@index([operatorId])
   @@index([targetUserId])
+  @@index([operationType])
   @@index([createdAt])
   @@map("account_flows")
 }
@@ -266,17 +266,17 @@ model Announcement {
 }
 
 model OperationLog {
-  id            Int      @id @default(autoincrement())
-  cardId        String   @map("card_id") @db.VarChar(50)
-  cardNo        String   @map("card_no") @db.VarChar(20)
-  operationType String   @map("operation_type") @db.VarChar(50)
-  amount        Decimal  @db.Decimal(15, 2)
-  currency      String   @default("USD") @db.VarChar(3)
-  operatorId    Int      @map("operator_id")
-  operatorName  String   @map("operator_name") @db.VarChar(100)
-  description   String?
-  createdAt     DateTime @default(now()) @map("created_at")
-  operator      User     @relation("OperationLogOperator", fields: [operatorId], references: [id])
+  id            Int           @id @default(autoincrement())
+  cardId        String        @map("card_id") @db.VarChar(50)
+  cardNo        String        @map("card_no") @db.VarChar(20)
+  operationType OperationType @map("operation_type")
+  amount        Decimal       @db.Decimal(15, 4)
+  currency      String        @default("USD") @db.VarChar(3)
+  operatorId    Int           @map("operator_id")
+  operatorName  String        @map("operator_name") @db.VarChar(100)
+  description   String?       @db.VarChar(500)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  operator      User          @relation("OperationLogOperator", fields: [operatorId], references: [id])
 
   @@index([cardId])
   @@index([cardNo])

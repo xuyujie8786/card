@@ -741,7 +741,7 @@ export class UserService {
         data: { 
           twoFAEnabled: false,
           twoFASecret: null,
-          twoFABackupCodes: Prisma.JsonNull
+          twoFABackupCodes: null
         }
       });
       

@@ -1,0 +1,98 @@
+# ==============================================
+# 虚拟卡管理系统 - 前端应用 Dockerfile
+# 多阶段构建，优化镜像大小和构建速度
+# ==============================================
+
+# ==================== 构建阶段 ====================
+FROM node:20-alpine AS builder
+
+# 设置工作目录
+WORKDIR /app
+
+# 安装pnpm（比npm快2-3倍）
+RUN npm install -g pnpm@8
+
+# 复制依赖配置
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# 配置pnpm使用国内镜像（加速构建）
+RUN pnpm config set registry https://registry.npmmirror.com && \
+    pnpm config set strict-ssl false
+
+# 安装依赖
+RUN pnpm install --shamefully-hoist --ignore-scripts
+
+# 手动运行必要的setup
+RUN npx max setup || true
+
+# 复制源代码和配置（只复制前端代码）
+COPY config ./config
+COPY public ./public
+COPY src ./src
+COPY biome.json ./
+COPY jest.config.ts ./
+
+# 验证没有后端代码
+RUN echo "=== 验证构建上下文 ===" && \
+    ls -la && \
+    echo "=== 检查src目录 ===" && \
+    ls -la src/ && \
+    if [ -d "src/controllers" ]; then \
+        echo "❌ 错误：检测到后端代码！" && exit 1; \
+    else \
+        echo "✅ 正常：只有前端代码"; \
+    fi
+
+# 设置环境变量
+ENV NODE_ENV=production
+ENV UMI_ENV=production
+
+# 构建应用
+RUN pnpm run build
+
+# 验证构建产物
+RUN echo "=== 验证构建产物 ===" && \
+    ls -la dist/ && \
+    if [ ! -f "dist/index.html" ]; then \
+        echo "❌ 错误：缺少index.html！" && exit 1; \
+    else \
+        echo "✅ 构建成功"; \
+    fi
+
+# ==================== 生产阶段 ====================
+FROM nginx:alpine AS production
+
+# 安装curl用于健康检查
+RUN apk add --no-cache curl tzdata
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+
+# 删除默认nginx配置
+RUN rm -f /etc/nginx/conf.d/default.conf
+
+# 复制构建产物
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# 复制nginx配置
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# 创建nginx日志目录并设置权限
+RUN mkdir -p /var/log/nginx /var/cache/nginx && \
+    chown -R nginx:nginx /var/log/nginx /var/cache/nginx /usr/share/nginx/html && \
+    chmod -R 755 /usr/share/nginx/html
+
+# 暴露端口
+EXPOSE 80
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost/health || exit 1
+
+# 切换到nginx用户
+USER nginx
+
+# 启动nginx
+CMD ["nginx", "-g", "daemon off;"]
+

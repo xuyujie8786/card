@@ -82,7 +82,6 @@ export default [
   {
     path: '/security-settings',
     component: './security-settings',
-    layout: true,
     hideInMenu: true,
   },
   {

@@ -1,0 +1,228 @@
+version: '3.8'
+
+# ==============================================
+# 虚拟卡管理系统 - 生产环境 Docker Compose 配置
+# ==============================================
+
+networks:
+  vcard-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_logs:
+    driver: local
+  nginx_logs:
+    driver: local
+
+services:
+  # ==============================================
+  # PostgreSQL 数据库
+  # ==============================================
+  database:
+    image: postgres:15-alpine
+    container_name: vcard-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-vcard_db}
+      POSTGRES_USER: ${DB_USER:-vcard_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"  # 只绑定本地
+    networks:
+      vcard-network:
+        ipv4_address: 172.20.0.2
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-vcard_user} -d ${DB_NAME:-vcard_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==============================================
+  # Redis 缓存
+  # ==============================================
+  redis:
+    image: redis:7-alpine
+    container_name: vcard-redis
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"  # 只绑定本地
+    networks:
+      vcard-network:
+        ipv4_address: 172.20.0.3
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==============================================
+  # 后端服务
+  # ==============================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.optimized
+      args:
+        NODE_ENV: production
+    image: vcard-backend:${VERSION:-latest}
+    container_name: vcard-backend
+    environment:
+      # 应用配置
+      NODE_ENV: production
+      PORT: 3001
+      TZ: ${TZ:-Asia/Shanghai}
+      
+      # 数据库配置
+      DATABASE_URL: postgresql://${DB_USER:-vcard_user}:${DB_PASSWORD}@database:5432/${DB_NAME:-vcard_db}?schema=public&connection_limit=20&pool_timeout=20
+      
+      # Redis配置
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      
+      # JWT配置
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      
+      # 卡商API配置
+      CARD_PROVIDER_TOKEN: ${CARD_PROVIDER_TOKEN}
+      CARD_PROVIDER_URL: ${CARD_PROVIDER_URL:-https://openapi-hk.vccdaddy.com}
+      CARD_PROVIDER_AES_KEY: ${CARD_PROVIDER_AES_KEY}
+      
+      # 日志配置
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+      # 安全配置
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      
+      # 定时任务配置
+      SYNC_ENABLED: ${SYNC_ENABLED:-true}
+      SYNC_AUTH_PREVIOUS_CRON: ${SYNC_AUTH_PREVIOUS_CRON:-0 1 * * *}
+      SYNC_AUTH_CURRENT_CRON: ${SYNC_AUTH_CURRENT_CRON:-0 13 * * *}
+      SYNC_SETTLE_PREVIOUS_CRON: ${SYNC_SETTLE_PREVIOUS_CRON:-30 1 * * *}
+      SYNC_SETTLE_CURRENT_CRON: ${SYNC_SETTLE_CURRENT_CRON:-30 13 * * *}
+      
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-3001}:3001"  # 只绑定本地，通过nginx反向代理
+    networks:
+      vcard-network:
+        ipv4_address: 172.20.0.4
+    restart: always
+    volumes:
+      - backend_logs:/app/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ==============================================
+  # 前端服务
+  # ==============================================
+  frontend:
+    build:
+      context: ./v1
+      dockerfile: Dockerfile.optimized
+      args:
+        NODE_ENV: production
+    image: vcard-frontend:${VERSION:-latest}
+    container_name: vcard-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-8000}:80"  # 对外暴露
+    networks:
+      vcard-network:
+        ipv4_address: 172.20.0.5
+    restart: always
+    volumes:
+      - nginx_logs:/var/log/nginx
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+

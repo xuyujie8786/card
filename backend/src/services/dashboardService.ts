@@ -261,12 +261,10 @@ export class DashboardService {
             gte: startDate,
             lte: endDate
           },
-          // 排除授权取消的交易
           txnType: {
-            not: 'AUTH_CANCEL'
+            not: CardTxnType.AUTH_CANCEL // 排除授权撤销
           },
-          // 只统计成功的交易
-          txnStatus: '1'
+          txnStatus: '1' // 只统计成功的交易
         },
         select: {
           txnTime: true,

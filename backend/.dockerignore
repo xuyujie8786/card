@@ -1,0 +1,29 @@
+# 依赖
+node_modules/
+
+# 日志
+logs/
+*.log
+
+# 测试文件
+test-*.js
+check-*.js
+*.test.ts
+*.spec.ts
+
+# 临时文件
+*.tmp
+*.db
+*.sqlite
+*.backup
+
+# 环境变量（会通过docker-compose注入）
+.env
+.env.*
+
+# 开发文件
+*.md
+.vscode/
+.idea/
+.DS_Store
+

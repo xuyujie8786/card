@@ -353,7 +353,7 @@ export class SecurityController {
         data: { 
           twoFAEnabled: false,
           twoFASecret: null,
-          twoFABackupCodes: Prisma.JsonNull
+          twoFABackupCodes: null
         }
       });
 

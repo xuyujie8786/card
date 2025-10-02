@@ -272,140 +272,136 @@ const SecuritySettingsPage: React.FC = () => {
         subTitle: '管理您的账户安全设置',
       }}
     >
-      <Row gutter={24}>
-        <Col span={24}>
-          {/* 修改密码 */}
-          <Card
-            title={
-              <Space>
-                <LockOutlined />
-                <span>修改密码</span>
-              </Space>
-            }
-            style={{ marginBottom: 24 }}
+      {/* 修改密码 */}
+      <Card
+        title={
+          <Space>
+            <LockOutlined />
+            <span>修改密码</span>
+          </Space>
+        }
+        style={{ marginBottom: 24 }}
+      >
+        <Form
+          form={passwordForm}
+          layout="vertical"
+          onFinish={handleChangePassword}
+          style={{ maxWidth: 400 }}
+        >
+          <Form.Item
+            name="currentPassword"
+            label="当前密码"
+            rules={[
+              { required: true, message: '请输入当前密码' },
+            ]}
           >
-            <Form
-              form={passwordForm}
-              layout="vertical"
-              onFinish={handleChangePassword}
-              style={{ maxWidth: 400 }}
-            >
-              <Form.Item
-                name="currentPassword"
-                label="当前密码"
-                rules={[
-                  { required: true, message: '请输入当前密码' },
-                ]}
-              >
-                <Input.Password
-                  placeholder="请输入当前密码"
-                  iconRender={(visible) =>
-                    visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
-                  }
-                />
-              </Form.Item>
+            <Input.Password
+              placeholder="请输入当前密码"
+              iconRender={(visible) =>
+                visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
+              }
+            />
+          </Form.Item>
 
-              <Form.Item
-                name="newPassword"
-                label="新密码"
-                rules={[
-                  { required: true, message: '请输入新密码' },
-                  { min: 6, message: '密码至少6位字符' },
-                ]}
-              >
-                <Input.Password
-                  placeholder="请输入新密码"
-                  iconRender={(visible) =>
-                    visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
-                  }
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="confirmPassword"
-                label="确认新密码"
-                dependencies={['newPassword']}
-                rules={[
-                  { required: true, message: '请确认新密码' },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (!value || getFieldValue('newPassword') === value) {
-                        return Promise.resolve();
-                      }
-                      return Promise.reject(new Error('两次输入的密码不一致'));
-                    },
-                  }),
-                ]}
-              >
-                <Input.Password
-                  placeholder="请再次输入新密码"
-                  iconRender={(visible) =>
-                    visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
-                  }
-                />
-              </Form.Item>
-
-              <Form.Item>
-                <Button type="primary" htmlType="submit" loading={loading}>
-                  修改密码
-                </Button>
-              </Form.Item>
-            </Form>
-          </Card>
-
-          {/* 两步验证 */}
-          <Card
-            title={
-              <Space>
-                <SafetyOutlined />
-                <span>两步验证</span>
-              </Space>
-            }
+          <Form.Item
+            name="newPassword"
+            label="新密码"
+            rules={[
+              { required: true, message: '请输入新密码' },
+              { min: 6, message: '密码至少6位字符' },
+            ]}
           >
-            <div style={{ marginBottom: 16 }}>
-              <Row justify="space-between" align="middle">
-                <Col>
-                  <Space direction="vertical" size={4}>
-                    <Text strong>两步验证 (2FA)</Text>
-                    <Text type="secondary">
-                      {twoFAEnabled
-                        ? '已启用两步验证，为您的账户提供额外安全保护'
-                        : '启用两步验证可以为您的账户提供额外的安全保护'}
-                    </Text>
-                  </Space>
-                </Col>
-                <Col>
-                  <Space>
-                    {twoFAEnabled ? (
-                      <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                    ) : null}
-                    <Switch
-                      checked={twoFAEnabled}
-                      onChange={(checked) => {
-                        if (checked) {
-                          handleEnable2FA();
-                        } else {
-                          handleDisable2FA();
-                        }
-                      }}
-                      loading={loading}
-                    />
-                  </Space>
-                </Col>
-              </Row>
-            </div>
+            <Input.Password
+              placeholder="请输入新密码"
+              iconRender={(visible) =>
+                visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
+              }
+            />
+          </Form.Item>
 
-            {twoFAEnabled && (
-              <Alert
-                message="两步验证已启用"
-                description="您的账户已受到两步验证保护。如果您丢失了身份验证器设备，请联系客服获取帮助。"
-                type="success"
-                showIcon
-              />
-            )}
-          </Card>
-        </Col>
-      </Row>
+          <Form.Item
+            name="confirmPassword"
+            label="确认新密码"
+            dependencies={['newPassword']}
+            rules={[
+              { required: true, message: '请确认新密码' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('newPassword') === value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error('两次输入的密码不一致'));
+                },
+              }),
+            ]}
+          >
+            <Input.Password
+              placeholder="请再次输入新密码"
+              iconRender={(visible) =>
+                visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
+              }
+            />
+          </Form.Item>
+
+          <Form.Item>
+            <Button type="primary" htmlType="submit" loading={loading}>
+              修改密码
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
+
+      {/* 两步验证 */}
+      <Card
+        title={
+          <Space>
+            <SafetyOutlined />
+            <span>两步验证</span>
+          </Space>
+        }
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Row justify="space-between" align="middle">
+            <Col>
+              <Space direction="vertical" size={4}>
+                <Text strong>两步验证 (2FA)</Text>
+                <Text type="secondary">
+                  {twoFAEnabled
+                    ? '已启用两步验证，为您的账户提供额外安全保护'
+                    : '启用两步验证可以为您的账户提供额外的安全保护'}
+                </Text>
+              </Space>
+            </Col>
+            <Col>
+              <Space>
+                {twoFAEnabled ? (
+                  <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                ) : null}
+                <Switch
+                  checked={twoFAEnabled}
+                  onChange={(checked) => {
+                    if (checked) {
+                      handleEnable2FA();
+                    } else {
+                      handleDisable2FA();
+                    }
+                  }}
+                  loading={loading}
+                />
+              </Space>
+            </Col>
+          </Row>
+        </div>
+
+        {twoFAEnabled && (
+          <Alert
+            message="两步验证已启用"
+            description="您的账户已受到两步验证保护。如果您丢失了身份验证器设备，请联系客服获取帮助。"
+            type="success"
+            showIcon
+          />
+        )}
+      </Card>
 
       {/* 2FA设置弹窗 */}
       <Modal

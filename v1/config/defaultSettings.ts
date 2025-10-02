@@ -20,9 +20,12 @@ const Settings: ProLayoutProps & {
   "token": {
     "pageContainer": {
       "paddingInlinePageContainerContent": 40
+
+
     }
   },
-  "splitMenus": false
+  splitMenus: false
+
 }
 
 export default Settings;

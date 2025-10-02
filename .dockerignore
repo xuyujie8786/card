@@ -1,53 +1,60 @@
-# This .dockerignore is for the root context only
-# Each service (backend, v1/frontend) has its own .dockerignore
+# 依赖
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Version control
-.git
+# 测试
+coverage/
+.nyc_output/
+
+# 构建产物
+dist/
+build/
+.umi/
+.umi-production/
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 日志
+logs/
+*.log
+
+# 临时文件
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
 .gitignore
 
-# Documentation  
+# 文档
 *.md
-!DEPLOYMENT.md
 docs/
 
-# Docker files (avoid recursion)
-docker-compose*.yml
-
-# Monitoring and scripts (not needed in images)
-monitoring/
-ssl-certs/
-
-# Backup files
-*.bak
+# 备份
 *.backup
-*_backup_*
-vcard_backup_*
+*.tar.gz
+*.dump
+*_backup_*/
 
-# Database files (not needed in images)
+# 数据库文件
 *.db
 *.sqlite
 *.sqlite3
-database.db
-database_backup_*
 
-# Temporary files
-*.tmp
-*.temp
-tmp/
-temp/
-
-# OS files
-.DS_Store
-Thumbs.db
-ehthumbs.db
-
-# IDE files
-.vscode/
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-
+# 测试文件
+test-*.js
+check-*.js
