@@ -83,7 +83,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:3001/api/health || exit 1
 
 # 使用tini作为init进程（处理信号和僵尸进程）
-ENTRYPOINT ["/sbin/tini", "--"]
+ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # 启动应用
 CMD ["node", "dist/index.js"]
