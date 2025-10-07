@@ -430,62 +430,6 @@ export class UserService {
     }
   }
 
-  // 系统充值（仅 SUPER_ADMIN 可用，不检查操作者余额）
-  static async systemRecharge(userId: number, amount: number, remark: string, currentUser: JwtPayload) {
-    try {
-      // 只有 SUPER_ADMIN 可以使用
-      if (currentUser.role !== 'SUPER_ADMIN') {
-        throw new Error('无权限执行系统充值');
-      }
-
-      return await prisma.$transaction(async (tx) => {
-        const user = await tx.user.findUnique({
-          where: { id: userId }
-        });
-        
-        if (!user) {
-          throw new Error('用户不存在');
-        }
-        
-        const currentBalance = Number(user.balance);
-        const newBalance = currentBalance + amount;
-        
-        // 更新用户余额
-        const updatedUser = await tx.user.update({
-          where: { id: userId },
-          data: { balance: newBalance }
-        });
-        
-        // 记录账户流水
-        await tx.accountFlow.create({
-          data: {
-            operatorId: currentUser.id,
-            operatorName: currentUser.username,
-            targetUserId: userId,
-            targetName: user.name || user.username,
-            operationType: AccountOperationType.RECHARGE,
-            amount: new Decimal(amount),
-            currency: 'USD',
-            description: remark,
-            businessType: 'system_recharge'
-          } as any
-        });
-        
-        logger.info(`System recharge: ${amount} for user ${userId} by ${currentUser.username}`);
-        
-        return {
-          user: {
-            id: updatedUser.id,
-            balance: Number(updatedUser.balance),
-            currency: updatedUser.currency,
-          }
-        };
-      });
-    } catch (error) {
-      logger.error('UserService.systemRecharge error:', error);
-      throw error;
-    }
-  }
 
   // 资金操作
   static async balanceOperation(userId: number, operationData: BalanceOperationData, currentUser: JwtPayload) {
