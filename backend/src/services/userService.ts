@@ -314,8 +314,12 @@ export class UserService {
       
       // 设置父级用户ID
       let parentId = userData.parentId;
-      if (!parentId && currentUser.role === 'admin') {
-        parentId = currentUser.id;
+      if (!parentId) {
+        // 如果没有指定父级用户，自动设置为当前用户
+        // 超级管理员和管理员创建用户时，都将自己设置为父级
+        if (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN') {
+          parentId = currentUser.id;
+        }
       }
       
       const user = await prisma.user.create({
@@ -422,6 +426,63 @@ export class UserService {
       logger.info(`User deleted: ${userId} by ${currentUser.username}`);
     } catch (error) {
       logger.error('UserService.deleteUser error:', error);
+      throw error;
+    }
+  }
+
+  // 系统充值（仅 SUPER_ADMIN 可用，不检查操作者余额）
+  static async systemRecharge(userId: number, amount: number, remark: string, currentUser: JwtPayload) {
+    try {
+      // 只有 SUPER_ADMIN 可以使用
+      if (currentUser.role !== 'SUPER_ADMIN') {
+        throw new Error('无权限执行系统充值');
+      }
+
+      return await prisma.$transaction(async (tx) => {
+        const user = await tx.user.findUnique({
+          where: { id: userId }
+        });
+        
+        if (!user) {
+          throw new Error('用户不存在');
+        }
+        
+        const currentBalance = Number(user.balance);
+        const newBalance = currentBalance + amount;
+        
+        // 更新用户余额
+        const updatedUser = await tx.user.update({
+          where: { id: userId },
+          data: { balance: newBalance }
+        });
+        
+        // 记录账户流水
+        await tx.accountFlow.create({
+          data: {
+            operatorId: currentUser.id,
+            operatorName: currentUser.username,
+            targetUserId: userId,
+            targetName: user.name || user.username,
+            operationType: AccountOperationType.RECHARGE,
+            amount: new Decimal(amount),
+            currency: 'USD',
+            description: remark,
+            businessType: 'system_recharge'
+          } as any
+        });
+        
+        logger.info(`System recharge: ${amount} for user ${userId} by ${currentUser.username}`);
+        
+        return {
+          user: {
+            id: updatedUser.id,
+            balance: Number(updatedUser.balance),
+            currency: updatedUser.currency,
+          }
+        };
+      });
+    } catch (error) {
+      logger.error('UserService.systemRecharge error:', error);
       throw error;
     }
   }

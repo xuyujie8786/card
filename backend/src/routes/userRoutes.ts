@@ -19,6 +19,9 @@ router.delete('/:id', UserController.deleteUser);
 // 用户资金操作  
 router.post('/balance-operation', UserController.balanceOperation);
 
+// 系统充值（仅 SUPER_ADMIN）
+router.post('/system-recharge', UserController.systemRecharge);
+
 // 管理员功能
 router.post('/:id/reset-password', UserController.adminResetPassword);
 router.post('/:id/passwordless-login', UserController.generatePasswordlessLogin);

@@ -51,6 +51,13 @@ const BalanceOperationSchema = z.object({
   remark: z.string().optional(),
 });
 
+// 系统充值请求验证
+const SystemRechargeSchema = z.object({
+  userId: z.number(),
+  amount: z.number().min(0.01, '金额必须大于0'),
+  remark: z.string().optional(),
+});
+
 export class UserController {
   // 获取用户列表
   static async getUsers(req: AuthenticatedRequest, res: Response) {
@@ -189,6 +196,36 @@ export class UserController {
       res.status(500).json({
         success: false,
         message: error instanceof Error ? error.message : '资金操作失败',
+      });
+    }
+  }
+
+  // 系统充值（仅 SUPER_ADMIN 可用，不检查操作者余额）
+  static async systemRecharge(req: AuthenticatedRequest, res: Response) {
+    try {
+      const currentUser = req.user!;
+      
+      // 只有 SUPER_ADMIN 可以使用系统充值
+      if (currentUser.role !== 'SUPER_ADMIN') {
+        return res.status(403).json({
+          success: false,
+          message: '无权限执行系统充值',
+        });
+      }
+
+      const rechargeData = SystemRechargeSchema.parse(req.body);
+      const result = await UserService.systemRecharge(rechargeData.userId, rechargeData.amount, rechargeData.remark || '系统充值', currentUser);
+      
+      res.json({
+        success: true,
+        data: result,
+        message: '系统充值成功',
+      });
+    } catch (error) {
+      logger.error('System recharge error:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : '系统充值失败',
       });
     }
   }
